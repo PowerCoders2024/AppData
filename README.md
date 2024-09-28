@@ -12,11 +12,14 @@ Este proyecto crea una aplicación en `Tkinter` que permite cargar datos de espe
 - Python 3.x
 - Librerías de Python:
   - `tkinter`
+  - `tkinter`
   - `matplotlib`
   - `mplcursors`
   - `pandas`
   - `numpy`
+  - `seaborn`
   - `sklearn`
+  - `scipy`
 
 Puedes instalar las dependencias necesarias utilizando `pip`:
 
