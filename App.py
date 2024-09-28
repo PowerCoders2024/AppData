@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import mplcursors
+import seaborn as sns
 
 # Global variables to store data
 raw_lines = None
@@ -157,8 +158,41 @@ def calcular_metricas(df_final):
         metricas[f'Amplitud Cluster {cluster}'] = calcularAmplitud(df_final, cluster)
         metricas[f'Nivel de ruido Cluster {cluster}'] = calcularNivelRuido(df_final, cluster)
         metricas[f'SNR Cluster {cluster}'] = calcularSenalRuido(df_final, cluster)
-    
+        metricas[f'Potencia del canal Cluster {cluster}'] = calcularPotenciaCanal(df_final, cluster)
+        metricas[f'Ocupacion del canal Cluster {cluster}'] = calcularOcupacion(df_final, cluster)
+        metricas[f'Frecuencia de repeticion de pulso Cluster {cluster}'] = calcularPrf(df_final, cluster)
+        metricas[f'Crest Factor Cluster {cluster}'] = calcularCrestFactor(df_final, cluster)
+        metricas[f'Picos espectrales Cluster {cluster}'] = calcularPicosEspectrales(df_final, cluster)
+        
+    print(metricas)
     return metricas
+
+def calcularPicosEspectrales(df_final, cluster):
+  df_cluster = df_final[df_final['Cluster'] == cluster].iloc[:, :-6]
+
+  frequencies = pd.to_numeric(df_cluster.index)
+
+  min_frequency = frequencies.min()
+  max_frequency = frequencies.max()
+
+
+  df_band = df_cluster[(pd.to_numeric(df_cluster.index) >= min_frequency) & (pd.to_numeric(df_cluster.index) <= max_frequency)]
+
+  picos = df_band.idxmax(axis=1)
+  amplitudes_maximas = df_band.max(axis=1)
+
+  return list(zip(picos, amplitudes_maximas))
+
+def calcularCrestFactor(df_final, cluster):
+    peak_value = calcularAmplitud(df_final, cluster)
+    rms_value = np.sqrt(np.mean(np.square(df_final.values)))
+    crest_factor = peak_value / rms_value
+    return crest_factor
+
+def calcularPrf(df_final, cluster, threshold=0.1):
+    df_cluster = df_final[df_final['Cluster'] == cluster]
+    prf = (df_cluster > threshold * df_cluster.max().max()).sum(axis=1).mean()
+    return prf
 
 def calcularFrecuenciaCentral(df, cluster):
     df_cluster = df[df['Cluster'] == cluster]
@@ -182,6 +216,16 @@ def calcularSenalRuido(df, cluster):
     df_cluster = df[df['Cluster'] == cluster]
     return df_cluster.iloc[:, :-6].std(axis=1).mean()
 
+def calcularPotenciaCanal(df_final, cluster):
+    df_cluster = df_final[df_final['Cluster'] == cluster]
+    potencia = np.sum(np.square(df_cluster.values))
+    return potencia
+
+def calcularOcupacion(df_final, cluster, threshold=0.1):
+    df_cluster = df_final[df_final['Cluster'] == cluster]
+    ocupacion = (df_cluster > threshold * df_cluster.max().max()).sum().sum()
+    return ocupacion
+
 # Cargar y procesar los datos del espectrograma
 def cargar_y_procesar_datos(filepath):
     with open(filepath, 'r') as file:
@@ -189,6 +233,76 @@ def cargar_y_procesar_datos(filepath):
     df_spectrogram = process_spectrogram_data(raw_lines)
     df_final = identificarSenales(df_spectrogram)
     return df_final
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+"""
+def graficoClusters(df, column='Cluster'):
+    # Filtrar el DataFrame para excluir el clúster 0
+    df_filtered = df[df[column] != 0]
+
+    # Asegurar que el índice (frecuencias) es numérico
+    frequencies = pd.to_numeric(df_filtered.index)
+    # Crear un rango numérico para los timestamps, un punto más que las columnas de datos
+    timestamps = np.arange(df_filtered.shape[1])  # Incluir un punto adicional
+
+    # Ajustar X, Y para alinear con Z.T (transponer Z)
+    X, Y = np.meshgrid(timestamps[:-1], frequencies)  # Usar timestamps hasta el penúltimo para coincidir con las dimensiones de Z.T
+
+    # La matriz de magnitudes, asegurarse de que es flotante
+    Z = df_filtered.iloc[:, :-1].astype(float).values  # Excluyendo la columna de clúster
+
+    # Crear el gráfico utilizando pcolormesh
+    plt.figure(figsize=(14, 8))
+    c = plt.pcolormesh(X, Y, Z.T, shading='auto', cmap='viridis')  # Transponer Z para coincidir con X y Y
+    plt.colorbar(c, label='Magnitud')
+
+    plt.title("Espectrograma con Clústeres")
+    plt.xlabel("Timestamps (índice)")
+    plt.ylabel("Frecuencia (Hz)")
+    plt.grid(True)
+
+    plt.show()"""
+    
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+def graficoClusters(df, column):
+    # Convertir índices a numéricos para las frecuencias
+    frequencies = pd.to_numeric(df.index)
+    # Generar un rango para los timestamps excluyendo las últimas 5 columnas que asumimos son metadata o clústeres
+    timestamps = np.arange(df.shape[1] - 5)
+
+    # Preparar los colores para cada clúster
+    unique_clusters = np.unique(df[column])
+    palette = sns.color_palette("tab10", len(unique_clusters))  # Paleta de colores para los clústeres
+    cluster_colors = {cluster: palette[i] for i, cluster in enumerate(unique_clusters)}
+
+    plt.figure(figsize=(14, 8))
+
+    # Iterar sobre cada frecuencia y dibujar todos sus puntos con el color correspondiente al clúster
+    for i, freq in enumerate(frequencies):
+        cluster_label = df[column].iloc[i]
+        color = cluster_colors[cluster_label]
+        plt.scatter(timestamps, np.repeat(freq, len(timestamps)), c=[color], s=20, alpha=0.75)
+
+    plt.title("Espectrograma con Clústeres")
+    plt.xlabel("Timestamps")
+    plt.ylabel("Frecuencia (Hz)")
+    plt.grid(True)
+
+    # Crear leyenda
+    handles = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=cluster_colors[c], markersize=10, label=f'Cluster {c}')
+               for c in unique_clusters]
+    plt.legend(handles=handles, title="Clusters", bbox_to_anchor=(1.05, 1), loc='upper left')
+
+    plt.show()
+
+
+#graficoClusters("Cluster")
+
 
 # Función para procesar los datos del espectrograma y calcular métricas
 def cargar_procesar_y_plotear():
@@ -198,8 +312,11 @@ def cargar_procesar_y_plotear():
     df_final = identificarSenales(df_spectrogram)
     # Calcular métricas
     metricas = calcular_metricas(df_final)
-
-    return metricas
-
+    graficoClusters(df_final, 'Cluster')
+    # Imprimir las métricas en la consola
+    print("Métricas Calculadas:")
+    for key, value in metricas.items():
+        print(f"{key}: {value:.2f}")
     
-# cargar_procesar_y_plotear('.\csv\SPG_0019.csv')
+cargar_procesar_y_plotear('.\csv\SPG_0019.csv')
+
