@@ -136,30 +136,82 @@ def plot_spectrogram(frame):
         create_local_interactive_spectrogram_with_cursor(df_numeric, frame)
     else:
         messagebox.showerror("Error", "No data available. Please load a CSV file first.")
+        
+        
+from sklearn.cluster import KMeans
+import scipy  
+# Función para identificar señales basada en distintas métricas
+def identificarSenales(data):
+    df = data.apply(pd.to_numeric, errors='coerce').fillna(0)
+    df['std_dev'] = df.std(axis=1)
+    df['mean_diff'] = df.diff(axis=1).mean(axis=1).abs()
+    df['derivative'] = df.apply(lambda row: np.gradient(row.values), axis=1).apply(np.max)
+    df['combined_score'] = df['std_dev'] + df['derivative'] + df["mean_diff"]
+    return df
 
-# # Tkinter window setup
-# root = tk.Tk()
-# root.title("Spectrogram Analyzer")
-# root.geometry("800x600")
+# Función para realizar el clustering y calcular las métricas
+def calcular_metricas(df_final):
+    kmeans = KMeans(n_clusters=3, random_state=0)
+    res_kmeans = kmeans.fit(df_final)
+    df_final['Cluster'] = res_kmeans.labels_
 
-# # Create main frame for layout
-# main_frame = tk.Frame(root)
-# main_frame.pack(fill=tk.BOTH, expand=True)
+    metricas = {}
+    for cluster in [1,2]:
+        metricas[f'Frecuencia central Cluster {cluster}'] = calcularFrecuenciaCentral(df_final, cluster)
+        metricas[f'BW Cluster {cluster}'] = calcularBW(df_final, cluster)
+        metricas[f'Amplitud Cluster {cluster}'] = calcularAmplitud(df_final, cluster)
+        metricas[f'Nivel de ruido Cluster {cluster}'] = calcularNivelRuido(df_final, cluster)
+        metricas[f'SNR Cluster {cluster}'] = calcularSenalRuido(df_final, cluster)
+    
+    return metricas
 
-# # Create a top frame for buttons
-# top_frame = tk.Frame(main_frame)
-# top_frame.pack(side=tk.TOP, fill=tk.X)
+def calcularFrecuenciaCentral(df, cluster):
+    df_cluster = df[df['Cluster'] == cluster]
+    max_combined_score_index = df_cluster['combined_score'].idxmax()
+    return float(max_combined_score_index)
 
-# # Create a bottom frame for the spectrogram plot
-# plot_frame = tk.Frame(main_frame)
-# plot_frame.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
+def calcularBW(df, cluster):
+    df_cluster = df[df['Cluster'] == cluster]
+    frequencies = pd.to_numeric(df_cluster.index)
+    return frequencies.max() - frequencies.min()
 
-# # Add buttons
-# load_button = tk.Button(top_frame, text="Load CSV", command=load_csv)
-# load_button.pack(side=tk.LEFT, padx=10, pady=10)
+def calcularAmplitud(df, cluster):
+    df_cluster = df[df['Cluster'] == cluster]
+    return df_cluster.iloc[:, :-6].max().max()
 
-# plot_button = tk.Button(top_frame, text="Plot Spectrogram", command=lambda: plot_spectrogram(plot_frame))
-# plot_button.pack(side=tk.LEFT, padx=10, pady=10)
+def calcularNivelRuido(df, cluster):
+    df_cluster = df[df['Cluster'] == cluster]
+    return df_cluster.iloc[:, :-6].std().mean()
 
-# # Run the Tkinter main loop
-# root.mainloop()
+def calcularSenalRuido(df, cluster):
+    df_cluster = df[df['Cluster'] == cluster]
+    return df_cluster.iloc[:, :-6].std(axis=1).mean()
+
+# Cargar y procesar los datos del espectrograma
+def cargar_y_procesar_datos(filepath):
+    with open(filepath, 'r') as file:
+        raw_lines = file.readlines()
+    df_spectrogram = process_spectrogram_data(raw_lines)
+    df_final = identificarSenales(df_spectrogram)
+    return df_final
+
+# Función para procesar los datos del espectrograma y calcular métricas
+def cargar_procesar_y_plotear(filepath):
+    # Cargar los datos
+    with open(filepath, 'r') as file:
+        raw_lines = file.readlines()
+
+    # Procesar los datos
+    df_spectrogram = process_spectrogram_data(raw_lines)
+    df_final = identificarSenales(df_spectrogram)
+
+    # Calcular métricas
+    metricas = calcular_metricas(df_final)
+
+    # Imprimir las métricas en la consola
+    print("Métricas Calculadas:")
+    for key, value in metricas.items():
+        print(f"{key}: {value:.2f}")
+
+    
+cargar_procesar_y_plotear('.\csv\SPG_0019.csv')
