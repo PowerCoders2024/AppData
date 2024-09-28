@@ -68,15 +68,15 @@ def process_spectrogram_data(raw_lines):
     
     return df
 
-# Function to create interactive spectrogram with mplcursors embedded in Tkinter
-def create_local_interactive_spectrogram_with_cursor(df_numeric, frame):
-    global canvas, toolbar
-    # Clear the frame if there is an existing canvas or toolbar
-    if canvas:
-        canvas.get_tk_widget().pack_forget()
-    if toolbar:
-        toolbar.pack_forget()
 
+# Definir la función para conectar el cursor
+def on_add(sel, df_numeric):
+    x, y = sel.target
+    magnitude = df_numeric.iloc[int(y), int(x)]
+    sel.annotation.set(text=f'Frequency: {x:.2f} Hz\nTimestamp: {y}\nMagnitude: {magnitude:.2f} dBm')
+
+# Función principal para crear el espectrograma interactivo en una ventana aparte
+def create_local_interactive_spectrogram_with_cursor(df_numeric):
     frequencies = pd.to_numeric(df_numeric.index)
     timestamps = np.arange(len(df_numeric.columns))
     X, Y = np.meshgrid(frequencies, timestamps)
@@ -92,25 +92,15 @@ def create_local_interactive_spectrogram_with_cursor(df_numeric, frame):
 
     plt.tight_layout()
 
-    # Add mplcursors for interactive mouse tracking
+    # Añadir mplcursors para el seguimiento interactivo del mouse
     cursor = mplcursors.cursor(c, hover=True)
 
-    @cursor.connect("add")
-    def on_add(sel):
-        x, y = sel.target
-        magnitude = df_numeric.iloc[int(y), int(x)]
-        sel.annotation.set(text=f'Frequency: {x:.2f} Hz\nTimestamp: {y}\nMagnitude: {magnitude:.2f} dBm')
+    # Conectar el cursor al evento y pasar df_numeric
+    cursor.connect("add", lambda sel: on_add(sel, df_numeric))
 
-    # Embed Matplotlib figure into Tkinter
-    canvas = FigureCanvasTkAgg(fig, master=frame)
-    canvas.draw()
-    canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
-
-    # Add Matplotlib toolbar for zoom, pan functionality
-    toolbar = NavigationToolbar2Tk(canvas, frame)
-    toolbar.update()
-    toolbar.pack(side=tk.BOTTOM, fill=tk.X)
-
+    # Mostrar el gráfico en una ventana separada
+    plt.show()
+                                             
 # Function to load the CSV file
 def load_csv():
     global raw_lines, df_spectrogram
@@ -124,21 +114,23 @@ def load_csv():
             # Process the data
             df_spectrogram = process_spectrogram_data(raw_lines)
             
+            
             messagebox.showinfo("Success", "File loaded and data processed successfully!")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load file: {str(e)}")
 
 # Function to plot the spectrogram in the same window
-def plot_spectrogram(frame):
+def plot_spectrogram():
     global df_spectrogram
     if df_spectrogram is not None:
         df_numeric = df_spectrogram.apply(pd.to_numeric, errors='coerce')
-        create_local_interactive_spectrogram_with_cursor(df_numeric, frame)
+        create_local_interactive_spectrogram_with_cursor(df_numeric)
     else:
         messagebox.showerror("Error", "No data available. Please load a CSV file first.")
         
         
 from sklearn.cluster import KMeans
+
 import scipy  
 # Función para identificar señales basada en distintas métricas
 def identificarSenales(data):
@@ -150,12 +142,15 @@ def identificarSenales(data):
     return df
 
 # Función para realizar el clustering y calcular las métricas
+
+
 def calcular_metricas(df_final):
+    metricas = {}
     kmeans = KMeans(n_clusters=3, random_state=0)
     res_kmeans = kmeans.fit(df_final)
     df_final['Cluster'] = res_kmeans.labels_
 
-    metricas = {}
+    
     for cluster in [1,2]:
         metricas[f'Frecuencia central Cluster {cluster}'] = calcularFrecuenciaCentral(df_final, cluster)
         metricas[f'BW Cluster {cluster}'] = calcularBW(df_final, cluster)
@@ -196,22 +191,15 @@ def cargar_y_procesar_datos(filepath):
     return df_final
 
 # Función para procesar los datos del espectrograma y calcular métricas
-def cargar_procesar_y_plotear(filepath):
-    # Cargar los datos
-    with open(filepath, 'r') as file:
-        raw_lines = file.readlines()
+def cargar_procesar_y_plotear():
 
     # Procesar los datos
     df_spectrogram = process_spectrogram_data(raw_lines)
     df_final = identificarSenales(df_spectrogram)
-
     # Calcular métricas
     metricas = calcular_metricas(df_final)
 
-    # Imprimir las métricas en la consola
-    print("Métricas Calculadas:")
-    for key, value in metricas.items():
-        print(f"{key}: {value:.2f}")
+    return metricas
 
     
-cargar_procesar_y_plotear('.\csv\SPG_0019.csv')
+# cargar_procesar_y_plotear('.\csv\SPG_0019.csv')
