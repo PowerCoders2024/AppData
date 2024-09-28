@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
+from tkinter import filedialog
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import pandas as pd
 import numpy as np
@@ -159,8 +160,25 @@ class Frame2(tk.Frame):
         label = tk.Label(self, text='Frame 2', font=("Arial", 15))
         label.pack()
         
-        
-        
+        self.button = tk.Button(self, text="Cargar y Procesar Espectrograma", 
+                                command=self.cargar_y_procesar_datos)
+        self.button.pack(pady=10)
+
+        # Crear una tabla para mostrar los datos procesados
+        self.table_frame = tk.Frame(self)
+        self.table_frame.pack(pady=20)
+
+    def cargar_y_procesar_datos(self):
+        # Abrir un cuadro de diálogo para seleccionar el archivo
+        filepath = filedialog.askopenfilename(title="Seleccionar archivo", 
+                                              filetypes=(("Archivos de texto", "*.csv"), ("Todos los archivos", "*.*")))
+
+        if filepath:
+            # Cargar y procesar los datos
+            df_final = App.cargar_y_procesar_datos(filepath)
+            App.calcular_metricas(df_final)
+       
+            
 
 class Frame3(tk.Frame):
     def __init__(self, parent, controller):

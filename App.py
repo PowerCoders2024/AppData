@@ -150,7 +150,7 @@ def calcular_metricas(df_final):
     kmeans = KMeans(n_clusters=3, random_state=0)
     res_kmeans = kmeans.fit(df_final)
     df_final['Cluster'] = res_kmeans.labels_
-
+    especSenal(1,df_final)
     
     for cluster in [1,2]:
         metricas[f'Frecuencia central Cluster {cluster}'] = calcularFrecuenciaCentral(df_final, cluster)
@@ -233,6 +233,7 @@ def cargar_y_procesar_datos(filepath):
     df_spectrogram = process_spectrogram_data(raw_lines)
     df_final = identificarSenales(df_spectrogram)
     return df_final
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -303,6 +304,33 @@ def graficoClusters(df, column):
 
 #graficoClusters("Cluster")
 
+def especSenal(cluster,df_final):
+    df_cluster = df_final[df_final['Cluster'] == cluster]
+    df_cluster = df_cluster.apply(pd.to_numeric, errors='coerce')
+
+    frequencies = pd.to_numeric(df_cluster.index).to_numpy()
+    timestamps = np.arange(len(df_cluster.columns))
+    X, Y = np.meshgrid(frequencies, timestamps)
+
+    cluster_palette = {1: 'RdYlGn', 2: 'coolwarm'}
+    cmap = cluster_palette.get(cluster, 'viridis')
+
+    plt.figure(figsize=(14, 8))
+
+    for i, freq in enumerate(frequencies):
+        plt.scatter(np.repeat(freq, len(timestamps)), timestamps, c=df_cluster.iloc[i].values, s=20, alpha=0.75, cmap=cmap)
+
+    plt.title(f"Espectrograma con Clústeres - Cluster {cluster}")
+    plt.xlabel("Frecuencia (Hz)")
+    plt.ylabel("Timestamps (Relative)")
+    plt.grid(True)
+
+    plt.xlim([frequencies.min() - 9 * (frequencies.max() - frequencies.min()), 
+              frequencies.max() + 9 * (frequencies.max() - frequencies.min())])
+
+    plt.tight_layout()
+    plt.show()
+
 
 # Función para procesar los datos del espectrograma y calcular métricas
 def cargar_procesar_y_plotear():
@@ -312,11 +340,9 @@ def cargar_procesar_y_plotear():
     df_final = identificarSenales(df_spectrogram)
     # Calcular métricas
     metricas = calcular_metricas(df_final)
-    graficoClusters(df_final, 'Cluster')
-    # Imprimir las métricas en la consola
-    print("Métricas Calculadas:")
-    for key, value in metricas.items():
-        print(f"{key}: {value:.2f}")
-    
-cargar_procesar_y_plotear('.\csv\SPG_0019.csv')
+
+    return metricas
+
+
+
 
