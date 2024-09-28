@@ -69,6 +69,8 @@ def process_spectrogram_data(raw_lines):
     
     return df
 
+
+
 # Function to create interactive spectrogram with mplcursors embedded in Tkinter
 def create_local_interactive_spectrogram_with_cursor(df_numeric, frame):
     global canvas, toolbar
@@ -238,6 +240,85 @@ def cargar_y_procesar_datos(filepath):
     df_spectrogram = process_spectrogram_data(raw_lines)
     df_final = identificarSenales(df_spectrogram)
     return df_final
+
+
+    
+
+
+def remove_noise_filter(magnitude_threshold=-80):
+    """
+    Filtra el ruido del espectrograma estableciendo un umbral para la magnitud.
+    Si el 90% de los datos de una fila están dentro de +/- 30 del promedio, reemplaza la fila y las cercanas (±30) con ceros.
+    """
+    global df_spectrogram
+    # Convertir todo el DataFrame a valores numéricos, reemplazando valores no numéricos con NaN
+    df_numeric = df_spectrogram.copy()
+    
+    df_numeric = df_numeric.apply(pd.to_numeric, errors='coerce')
+
+    # Calcular el promedio de magnitudes por frecuencia antes de aplicar el umbral
+    avg_magnitudes_before = df_numeric.mean(axis=1)
+    print("Promedio de magnitudes por frecuencia (antes de filtrar el ruido):")
+    print(avg_magnitudes_before.head())
+
+    # Filtrar valores por debajo del umbral de ruido
+    df_filtered = df_numeric.where(df_numeric > magnitude_threshold, np.nan)
+
+    # Iterar por cada fila (frecuencia) usando la posición de la fila
+    for i, (idx, row) in enumerate(df_filtered.iterrows()):
+        avg_row = row.mean()  # Promedio de la fila
+        within_range = ((row >= avg_row - 30) & (row <= avg_row + 30))  # Verificar si los valores están en el rango
+        print(idx)  # idx sigue siendo el índice real del DataFrame
+        
+        # Si el 90% o más de los valores están en el rango [avg ± 30], reemplaza toda la fila con 0
+        if within_range.mean() >= 0.9:
+            # Establecer un rango seguro para evitar errores de índice fuera de rango
+            start_idx = max(0, i - 30)
+            end_idx = min(len(df_filtered) - 1, i + 30)
+
+            # Reemplazar con ceros las filas en el rango [idx-30, idx+30]
+            df_filtered.iloc[start_idx:end_idx + 1] = 0
+
+    return df_filtered
+
+
+def show_noise_filter(frame):
+    df_numeric = remove_noise_filter()
+    create_local_interactive_spectrogram_with_cursor(df_numeric, frame)
+    
+
+def create_local_interactive_spectrogram_with_cursor(df_numeric, frame):
+    frequencies = pd.to_numeric(df_numeric.index)
+    timestamps = np.arange(len(df_numeric.columns))
+    X, Y = np.meshgrid(frequencies, timestamps)
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+
+    c = ax.pcolormesh(X, Y, df_numeric.values.T, shading='auto', cmap='RdYlGn')
+    fig.colorbar(c, label='Magnitude [dBm]', ax=ax)
+
+    ax.set_xlabel('Frequency [Hz]')
+    ax.set_ylabel('Timestamps (Relative)')
+    ax.set_title('Interactive Spectrogram')
+
+    plt.tight_layout()
+
+    cursor = mplcursors.cursor(c, hover=True)
+
+    @cursor.connect("add")
+    def on_add(sel):
+        x, y = sel.target
+        magnitude = df_numeric.iloc[int(y), int(x)]
+        sel.annotation.set(text=f'Frequency: {x:.2f} Hz\nTimestamp: {y}\nMagnitude: {magnitude:.2f} dBm')
+
+    canvas = FigureCanvasTkAgg(fig, master=frame)
+    canvas.draw()
+    canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+    toolbar = NavigationToolbar2Tk(canvas, frame)
+    toolbar.update()
+    toolbar.pack(side=tk.BOTTOM, fill=tk.X)
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -326,6 +407,6 @@ def cargar_procesar_y_plotear(filepath):
     print("Métricas Calculadas:")
     for key, value in metricas.items():
         print(f"{key}: {value:.2f}")
-    
-cargar_procesar_y_plotear('.\csv\SPG_0019.csv')
+
+
 
