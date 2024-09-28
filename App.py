@@ -137,29 +137,29 @@ def plot_spectrogram(frame):
     else:
         messagebox.showerror("Error", "No data available. Please load a CSV file first.")
 
-# Tkinter window setup
-root = tk.Tk()
-root.title("Spectrogram Analyzer")
-root.geometry("800x600")
+# # Tkinter window setup
+# root = tk.Tk()
+# root.title("Spectrogram Analyzer")
+# root.geometry("800x600")
 
-# Create main frame for layout
-main_frame = tk.Frame(root)
-main_frame.pack(fill=tk.BOTH, expand=True)
+# # Create main frame for layout
+# main_frame = tk.Frame(root)
+# main_frame.pack(fill=tk.BOTH, expand=True)
 
-# Create a top frame for buttons
-top_frame = tk.Frame(main_frame)
-top_frame.pack(side=tk.TOP, fill=tk.X)
+# # Create a top frame for buttons
+# top_frame = tk.Frame(main_frame)
+# top_frame.pack(side=tk.TOP, fill=tk.X)
 
-# Create a bottom frame for the spectrogram plot
-plot_frame = tk.Frame(main_frame)
-plot_frame.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
+# # Create a bottom frame for the spectrogram plot
+# plot_frame = tk.Frame(main_frame)
+# plot_frame.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
 
-# Add buttons
-load_button = tk.Button(top_frame, text="Load CSV", command=load_csv)
-load_button.pack(side=tk.LEFT, padx=10, pady=10)
+# # Add buttons
+# load_button = tk.Button(top_frame, text="Load CSV", command=load_csv)
+# load_button.pack(side=tk.LEFT, padx=10, pady=10)
 
-plot_button = tk.Button(top_frame, text="Plot Spectrogram", command=lambda: plot_spectrogram(plot_frame))
-plot_button.pack(side=tk.LEFT, padx=10, pady=10)
+# plot_button = tk.Button(top_frame, text="Plot Spectrogram", command=lambda: plot_spectrogram(plot_frame))
+# plot_button.pack(side=tk.LEFT, padx=10, pady=10)
 
-# Run the Tkinter main loop
-root.mainloop()
+# # Run the Tkinter main loop
+# root.mainloop()
