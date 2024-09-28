@@ -73,13 +73,13 @@ class TkinterApp(tk.Tk):
         self.submenu_frame.place(relx=0, rely=0.2, relwidth=1, relheight=0.85)
         att_submenu = SidebarSubMenu(self.submenu_frame,
                                      sub_menu_heading='Opciones',
-                                     sub_menu_options=["Espectograma crudo",
-                                                       "Espectograma sin ruido",
+                                     sub_menu_options=["Espectograma sin procesamiento",
+                                                       "Procesamiento",
                                                        "Metricas"])
-        att_submenu.options["Espectograma crudo"].config(
+        att_submenu.options["Espectograma sin procesamiento"].config(
             command=lambda: self.show_frame(Frame1)
         )
-        att_submenu.options["Espectograma sin ruido"].config(
+        att_submenu.options["Procesamiento"].config(
             command=lambda: self.show_frame(Frame2)
         )
         att_submenu.options["Metricas"].config(
@@ -138,11 +138,11 @@ class Frame1(tk.Frame):
         label = tk.Label(plot_frame, text='Cargar Espectograma', font=("Arial", 15))
         label.pack()
         
-        load_button = tk.Button(plot_frame, text="Load CSV", command=App.load_csv)
+        load_button = tk.Button(plot_frame, text="Cargar CSV", command=App.load_csv)
         load_button.pack(side=tk.TOP, padx=10, pady=10)
 
         # Botón para generar el espectrograma
-        plot_button = tk.Button(plot_frame, text="Plot Spectrogram", command=lambda: App.plot_spectrogram())
+        plot_button = tk.Button(plot_frame, text="Mostrar Espectrograma", command=lambda: App.plot_spectrogram())
         plot_button.pack(side=tk.TOP, padx=10, pady=10)
 
         # Frame donde se mostrará el espectrograma
@@ -157,26 +157,25 @@ class Frame2(tk.Frame):
 
         tk.Frame.__init__(self, parent)
 
-        label = tk.Label(self, text='Frame 2', font=("Arial", 15))
-        label.pack()
+        plot_button = tk.Button(self, text="Ver filtro sin ruido", command=self.show_noise_filter)
+        plot_button.pack(side=tk.LEFT, padx=10, pady=10)
         
-        self.button = tk.Button(self, text="Cargar y Procesar Espectrograma", 
-                                command=self.cargar_y_procesar_datos)
-        self.button.pack(pady=10)
-
-        # Crear una tabla para mostrar los datos procesados
-        self.table_frame = tk.Frame(self)
-        self.table_frame.pack(pady=20)
-
-    def cargar_y_procesar_datos(self):
-        # Abrir un cuadro de diálogo para seleccionar el archivo
-        filepath = filedialog.askopenfilename(title="Seleccionar archivo", 
-                                              filetypes=(("Archivos de texto", "*.csv"), ("Todos los archivos", "*.*")))
-
-        if filepath:
-            # Cargar y procesar los datos
-            df_final = App.cargar_y_procesar_datos(filepath)
-            App.calcular_metricas(df_final)
+        plot_button = tk.Button(self, text="Ver clusters", command=self.graficarClusters)
+        plot_button.pack(side=tk.LEFT, padx=10, pady=10)
+        
+        plot_button = tk.Button(self, text="Ver espectograma clusters", command=self.graficarEspecSenal)
+        plot_button.pack(side=tk.LEFT, padx=10, pady=10)
+        
+    def show_noise_filter(self):
+        App.show_noise_filter(self)
+        
+    def graficarClusters(self):
+        App.graficarClusters()
+    
+    def graficarEspecSenal(self):
+        App.graficarEspecSenal()
+        
+        
        
             
 

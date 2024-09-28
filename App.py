@@ -145,7 +145,7 @@ from sklearn.cluster import KMeans
 import scipy  
 # Función para identificar señales basada en distintas métricas
 def identificarSenales(data):
-    df = data.apply(pd.to_numeric, errors='coerce').fillna(0)
+    df = data.copy().apply(pd.to_numeric, errors='coerce').fillna(0)
     df['std_dev'] = df.std(axis=1)
     df['mean_diff'] = df.diff(axis=1).mean(axis=1).abs()
     df['derivative'] = df.apply(lambda row: np.gradient(row.values), axis=1).apply(np.max)
@@ -160,7 +160,7 @@ def calcular_metricas(df_final):
     kmeans = KMeans(n_clusters=3, random_state=0)
     res_kmeans = kmeans.fit(df_final)
     df_final['Cluster'] = res_kmeans.labels_
-    especSenal(1,df_final)
+    #especSenal(1,df_final)
     
     for cluster in [1,2]:
         metricas[f'Frecuencia central Cluster {cluster}'] = calcularFrecuenciaCentral(df_final, cluster)
@@ -174,7 +174,6 @@ def calcular_metricas(df_final):
         metricas[f'Crest Factor Cluster {cluster}'] = calcularCrestFactor(df_final, cluster)
         metricas[f'Picos espectrales Cluster {cluster}'] = calcularPicosEspectrales(df_final, cluster)
         
-    print(metricas)
     return metricas
 
 def calcularPicosEspectrales(df_final, cluster):
@@ -268,7 +267,6 @@ def remove_noise_filter(magnitude_threshold=-80):
     for i, (idx, row) in enumerate(df_filtered.iterrows()):
         avg_row = row.mean()  # Promedio de la fila
         within_range = ((row >= avg_row - 30) & (row <= avg_row + 30))  # Verificar si los valores están en el rango
-        print(idx)  # idx sigue siendo el índice real del DataFrame
         
         # Si el 90% o más de los valores están en el rango [avg ± 30], reemplaza toda la fila con 0
         if within_range.mean() >= 0.9:
@@ -308,14 +306,14 @@ def create_noise_spec(df_numeric, frame):
     ax.set_title('Interactive Spectrogram')
 
     plt.tight_layout()
-
-    canvas = FigureCanvasTkAgg(fig, master=frame)
+    plt.show()
+    """     canvas = FigureCanvasTkAgg(fig, master=frame)
     canvas.draw()
     canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
     toolbar = NavigationToolbar2Tk(canvas, frame)
     toolbar.update()
-    toolbar.pack(side=tk.BOTTOM, fill=tk.X)
+    toolbar.pack(side=tk.BOTTOM, fill=tk.X) """
 
 import numpy as np
 import pandas as pd
@@ -423,14 +421,21 @@ def cargar_procesar_y_plotear():
     df_final = identificarSenales(df_spectrogram)
     # Calcular métricas
     metricas = calcular_metricas(df_final)
-    graficoClusters(df_final, 'Cluster')
+
     # Imprimir las métricas en la consola
-    print("Métricas Calculadas:")
-    for key, value in metricas.items():
-        print(f"{key}: {value:.2f}")
 
     return metricas
 
-
+def graficarClusters():
+    df_spectrogram = process_spectrogram_data(raw_lines)
+    df_final = identificarSenales(df_spectrogram)
+    calcular_metricas(df_final)
+    graficoClusters(df_final, 'Cluster')
+    
+def graficarEspecSenal():
+    df_spectrogram = process_spectrogram_data(raw_lines)
+    df_final = identificarSenales(df_spectrogram)
+    calcular_metricas(df_final)
+    especSenal(1,df_final)
 
 
