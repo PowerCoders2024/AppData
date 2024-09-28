@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk
+from tkinter import filedialog
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg, NavigationToolbar2Tk
 import pandas as pd
 import numpy as np
@@ -36,10 +37,8 @@ class TkinterApp(tk.Tk):
         icon = tk.PhotoImage(file='ImageData/LU_logo.png')
         self.iconphoto(True, icon)
 
-        # ---------------- HEADER ------------------------
 
-        self.header = tk.Frame(self, bg=header_color)
-        self.header.place(relx=0.3, rely=0, relwidth=0.7, relheight=0.1)
+        
 
         # ---------------- SIDEBAR -----------------------
         # CREATING FRAME FOR SIDEBAR
@@ -54,14 +53,14 @@ class TkinterApp(tk.Tk):
         logo.place(x=5, y=20)
 
         uni_name = tk.Label(self.brand_frame,
-                            text='ABC',
+                            text='Grupo',
                             bg=sidebar_color,
                             font=("", 15, "bold")
                             )
         uni_name.place(x=55, y=27, anchor="w")
 
         uni_name = tk.Label(self.brand_frame,
-                            text='University', 
+                            text='Powercoders', 
                             bg=sidebar_color,
                             font=("", 15, "bold")
                             )
@@ -73,16 +72,18 @@ class TkinterApp(tk.Tk):
         self.submenu_frame = tk.Frame(self.sidebar, bg=sidebar_color)
         self.submenu_frame.place(relx=0, rely=0.2, relwidth=1, relheight=0.85)
         att_submenu = SidebarSubMenu(self.submenu_frame,
-                                     sub_menu_heading='SUBMENU 1',
-                                     sub_menu_options=["Display Frame1",
-                                                       "Display Frame2",
-                                                       ]
-                                     )
-        att_submenu.options["Display Frame1"].config(
+                                     sub_menu_heading='Opciones',
+                                     sub_menu_options=["Espectograma crudo",
+                                                       "Espectograma sin ruido",
+                                                       "Metricas"])
+        att_submenu.options["Espectograma crudo"].config(
             command=lambda: self.show_frame(Frame1)
         )
-        att_submenu.options["Display Frame2"].config(
+        att_submenu.options["Espectograma sin ruido"].config(
             command=lambda: self.show_frame(Frame2)
+        )
+        att_submenu.options["Metricas"].config(
+        command=lambda: self.show_frame(Frame3)
         )
 
         att_submenu.place(relx=0, rely=0.025, relwidth=1, relheight=0.3)
@@ -91,12 +92,13 @@ class TkinterApp(tk.Tk):
 
         container = tk.Frame(self)
         container.config(highlightbackground="#808080", highlightthickness=0.5)
-        container.place(relx=0.3, rely=0.1, relwidth=0.7, relheight=0.9)
+        container.place(relx=0.3, rely=0, relwidth=0.7, relheight=1)
 
         self.frames = {}
 
         for F in (Frame1,
                   Frame2,
+                  Frame3
                   ):
             
             frame = F(container, self)
@@ -128,27 +130,27 @@ class Frame1(tk.Frame):
 
         tk.Frame.__init__(self, parent)
         
-       # Etiqueta en el Frame
-        label = tk.Label(self, text='Frame 1', font=("Arial", 15))
+        
+        plot_frame = tk.Frame(self)
+        plot_frame.pack(side=tk.BOTTOM, fill=tk.X, expand=True)
+        
+        # Etiqueta en el Frame
+        label = tk.Label(plot_frame, text='Cargar Espectograma', font=("Arial", 15))
         label.pack()
         
-        plot_frame = tk.Frame(self,bg="lightblue")
-        plot_frame.pack(side=tk.BOTTOM, fill=tk.BOTH, expand=True)
-        
-        
-        load_button = tk.Button(self, text="Load CSV", command=App.load_csv)
-        load_button.pack(side=tk.LEFT, padx=10, pady=10)
+        load_button = tk.Button(plot_frame, text="Load CSV", command=App.load_csv)
+        load_button.pack(side=tk.TOP, padx=10, pady=10)
 
         # Botón para generar el espectrograma
-        plot_button = tk.Button(self, text="Plot Spectrogram", command=lambda: App.plot_spectrogram(plot_frame))
-        plot_button.pack(side=tk.LEFT, padx=10, pady=10)
+        plot_button = tk.Button(plot_frame, text="Plot Spectrogram", command=lambda: App.plot_spectrogram())
+        plot_button.pack(side=tk.TOP, padx=10, pady=10)
 
         # Frame donde se mostrará el espectrograma
         self.plot_frame = tk.Frame(self)
         
-        self.plot_frame.pack(fill=tk.BOTH, expand=True)
 
     
+
 
 class Frame2(tk.Frame):
     def __init__(self, parent, controller):
@@ -157,6 +159,57 @@ class Frame2(tk.Frame):
 
         label = tk.Label(self, text='Frame 2', font=("Arial", 15))
         label.pack()
+        
+        self.button = tk.Button(self, text="Cargar y Procesar Espectrograma", 
+                                command=self.cargar_y_procesar_datos)
+        self.button.pack(pady=10)
+
+        # Crear una tabla para mostrar los datos procesados
+        self.table_frame = tk.Frame(self)
+        self.table_frame.pack(pady=20)
+
+    def cargar_y_procesar_datos(self):
+        # Abrir un cuadro de diálogo para seleccionar el archivo
+        filepath = filedialog.askopenfilename(title="Seleccionar archivo", 
+                                              filetypes=(("Archivos de texto", "*.csv"), ("Todos los archivos", "*.*")))
+
+        if filepath:
+            # Cargar y procesar los datos
+            df_final = App.cargar_y_procesar_datos(filepath)
+            App.calcular_metricas(df_final)
+       
+            
+
+class Frame3(tk.Frame):
+    def __init__(self, parent, controller):
+
+        tk.Frame.__init__(self, parent)
+
+        label = tk.Label(self, text='Frame 3', font=("Arial", 15))
+        label.pack()
+        
+        plot_frame = tk.Frame(self)
+        plot_frame.pack(side=tk.BOTTOM, fill=tk.X, expand=True)
+
+        plot_button = tk.Button(plot_frame, text="Ver metricas", command=self.show_metrics)
+        plot_button.pack(side=tk.TOP, padx=10, pady=10)
+
+    def show_metrics(self):
+        metricas = App.cargar_procesar_y_plotear()
+        
+        # Crear un Treeview para la tabla
+        tree = ttk.Treeview(self, columns=("Métrica", "Valor"), show="headings")
+        tree.heading("Métrica", text="Métrica")
+        tree.heading("Valor", text="Valor")
+
+        # Insertar las métricas en la tabla
+        for metrica, valor in metricas.items():
+            tree.insert("", tk.END, values=(metrica, valor))
+
+        # Empaquetar la tabla
+        tree.pack(pady=20, padx=20, side=tk.BOTTOM)
+                
+
 
 
 # ----------------------------- CUSTOM WIDGETS ---------------------------------

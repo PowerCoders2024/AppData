@@ -80,6 +80,14 @@ def create_local_interactive_spectrogram_with_cursor(df_numeric, frame):
     if toolbar:
         toolbar.pack_forget()
 
+# Definir la función para conectar el cursor
+def on_add(sel, df_numeric):
+    x, y = sel.target
+    magnitude = df_numeric.iloc[int(y), int(x)]
+    sel.annotation.set(text=f'Frequency: {x:.2f} Hz\nTimestamp: {y}\nMagnitude: {magnitude:.2f} dBm')
+
+# Función principal para crear el espectrograma interactivo en una ventana aparte
+def create_local_interactive_spectrogram_with_cursor(df_numeric):
     frequencies = pd.to_numeric(df_numeric.index)
     timestamps = np.arange(len(df_numeric.columns))
     X, Y = np.meshgrid(frequencies, timestamps)
@@ -95,25 +103,15 @@ def create_local_interactive_spectrogram_with_cursor(df_numeric, frame):
 
     plt.tight_layout()
 
-    # Add mplcursors for interactive mouse tracking
+    # Añadir mplcursors para el seguimiento interactivo del mouse
     cursor = mplcursors.cursor(c, hover=True)
 
-    @cursor.connect("add")
-    def on_add(sel):
-        x, y = sel.target
-        magnitude = df_numeric.iloc[int(y), int(x)]
-        sel.annotation.set(text=f'Frequency: {x:.2f} Hz\nTimestamp: {y}\nMagnitude: {magnitude:.2f} dBm')
+    # Conectar el cursor al evento y pasar df_numeric
+    cursor.connect("add", lambda sel: on_add(sel, df_numeric))
 
-    # Embed Matplotlib figure into Tkinter
-    canvas = FigureCanvasTkAgg(fig, master=frame)
-    canvas.draw()
-    canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
-
-    # Add Matplotlib toolbar for zoom, pan functionality
-    toolbar = NavigationToolbar2Tk(canvas, frame)
-    toolbar.update()
-    toolbar.pack(side=tk.BOTTOM, fill=tk.X)
-
+    # Mostrar el gráfico en una ventana separada
+    plt.show()
+                                             
 # Function to load the CSV file
 def load_csv():
     global raw_lines, df_spectrogram
@@ -127,21 +125,23 @@ def load_csv():
             # Process the data
             df_spectrogram = process_spectrogram_data(raw_lines)
             
+            
             messagebox.showinfo("Success", "File loaded and data processed successfully!")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to load file: {str(e)}")
 
 # Function to plot the spectrogram in the same window
-def plot_spectrogram(frame):
+def plot_spectrogram():
     global df_spectrogram
     if df_spectrogram is not None:
         df_numeric = df_spectrogram.apply(pd.to_numeric, errors='coerce')
-        create_local_interactive_spectrogram_with_cursor(df_numeric, frame)
+        create_local_interactive_spectrogram_with_cursor(df_numeric)
     else:
         messagebox.showerror("Error", "No data available. Please load a CSV file first.")
         
         
 from sklearn.cluster import KMeans
+
 import scipy  
 # Función para identificar señales basada en distintas métricas
 def identificarSenales(data):
@@ -153,12 +153,15 @@ def identificarSenales(data):
     return df
 
 # Función para realizar el clustering y calcular las métricas
+
+
 def calcular_metricas(df_final):
+    metricas = {}
     kmeans = KMeans(n_clusters=3, random_state=0)
     res_kmeans = kmeans.fit(df_final)
     df_final['Cluster'] = res_kmeans.labels_
-
-    metricas = {}
+    especSenal(1,df_final)
+    
     for cluster in [1,2]:
         metricas[f'Frecuencia central Cluster {cluster}'] = calcularFrecuenciaCentral(df_final, cluster)
         metricas[f'BW Cluster {cluster}'] = calcularBW(df_final, cluster)
@@ -242,9 +245,6 @@ def cargar_y_procesar_datos(filepath):
     return df_final
 
 
-    
-
-
 def remove_noise_filter(magnitude_threshold=-80):
     """
     Filtra el ruido del espectrograma estableciendo un umbral para la magnitud.
@@ -284,17 +284,23 @@ def remove_noise_filter(magnitude_threshold=-80):
 
 def show_noise_filter(frame):
     df_numeric = remove_noise_filter()
-    create_local_interactive_spectrogram_with_cursor(df_numeric, frame)
+    create_noise_spec(df_numeric, frame)
     
 
-def create_local_interactive_spectrogram_with_cursor(df_numeric, frame):
+def create_noise_spec(df_numeric, frame):
     frequencies = pd.to_numeric(df_numeric.index)
     timestamps = np.arange(len(df_numeric.columns))
     X, Y = np.meshgrid(frequencies, timestamps)
 
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    c = ax.pcolormesh(X, Y, df_numeric.values.T, shading='auto', cmap='RdYlGn')
+    masked_array = np.ma.masked_where(df_numeric.values == 0, df_numeric.values)
+
+    cmap = plt.get_cmap('RdYlGn')
+    cmap.set_bad(color='white')  # Asignar color blanco para los valores enmascarados (valores 0)
+
+    # Crear el gráfico de espectrograma con los valores 0 en blanco
+    c = ax.pcolormesh(X, Y, masked_array.T, shading='auto', cmap=cmap)
     fig.colorbar(c, label='Magnitude [dBm]', ax=ax)
 
     ax.set_xlabel('Frequency [Hz]')
@@ -302,14 +308,6 @@ def create_local_interactive_spectrogram_with_cursor(df_numeric, frame):
     ax.set_title('Interactive Spectrogram')
 
     plt.tight_layout()
-
-    cursor = mplcursors.cursor(c, hover=True)
-
-    @cursor.connect("add")
-    def on_add(sel):
-        x, y = sel.target
-        magnitude = df_numeric.iloc[int(y), int(x)]
-        sel.annotation.set(text=f'Frequency: {x:.2f} Hz\nTimestamp: {y}\nMagnitude: {magnitude:.2f} dBm')
 
     canvas = FigureCanvasTkAgg(fig, master=frame)
     canvas.draw()
@@ -389,17 +387,40 @@ def graficoClusters(df, column):
 
 #graficoClusters("Cluster")
 
+def especSenal(cluster,df_final):
+    df_cluster = df_final[df_final['Cluster'] == cluster]
+    df_cluster = df_cluster.apply(pd.to_numeric, errors='coerce')
+
+    frequencies = pd.to_numeric(df_cluster.index).to_numpy()
+    timestamps = np.arange(len(df_cluster.columns))
+    X, Y = np.meshgrid(frequencies, timestamps)
+
+    cluster_palette = {1: 'RdYlGn', 2: 'coolwarm'}
+    cmap = cluster_palette.get(cluster, 'viridis')
+
+    plt.figure(figsize=(14, 8))
+
+    for i, freq in enumerate(frequencies):
+        plt.scatter(np.repeat(freq, len(timestamps)), timestamps, c=df_cluster.iloc[i].values, s=20, alpha=0.75, cmap=cmap)
+
+    plt.title(f"Espectrograma con Clústeres - Cluster {cluster}")
+    plt.xlabel("Frecuencia (Hz)")
+    plt.ylabel("Timestamps (Relative)")
+    plt.grid(True)
+
+    plt.xlim([frequencies.min() - 9 * (frequencies.max() - frequencies.min()), 
+              frequencies.max() + 9 * (frequencies.max() - frequencies.min())])
+
+    plt.tight_layout()
+    plt.show()
+
 
 # Función para procesar los datos del espectrograma y calcular métricas
-def cargar_procesar_y_plotear(filepath):
-    # Cargar los datos
-    with open(filepath, 'r') as file:
-        raw_lines = file.readlines()
+def cargar_procesar_y_plotear():
 
     # Procesar los datos
     df_spectrogram = process_spectrogram_data(raw_lines)
     df_final = identificarSenales(df_spectrogram)
-
     # Calcular métricas
     metricas = calcular_metricas(df_final)
     graficoClusters(df_final, 'Cluster')
@@ -407,6 +428,9 @@ def cargar_procesar_y_plotear(filepath):
     print("Métricas Calculadas:")
     for key, value in metricas.items():
         print(f"{key}: {value:.2f}")
+
+    return metricas
+
 
 
 
